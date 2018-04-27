@@ -1,6 +1,9 @@
                           ////////
 //  Weather station using Arduino( LCD display and update data to ThinkSpeak )
                           ////////
+#include <Wire.h>
+#include <Adafruit_BMP085.h>
+Adafruit_BMP085 bmp;
 #include "DHT.h"
 #include <LiquidCrystal.h>
 #include <SoftwareSerial.h>
@@ -29,19 +32,30 @@ void setup(){
   while (!Serial) {
     ;
   }
-  Serial.println("Started");
-  esp8266Module.begin(115200);
-  esp8266Module.write("AT\r\n");
-  delay(500);
-  if(esp8266Module.find("OK")){
-    Serial.println("Got the OK reply");
+  if (!bmp.begin()) 
+  {
+    Serial.println("BMP180 sensor not found");
+    while (1) {}
   }
+  Serial.println("Serial Started 9600");
+  esp8266Module.begin(115200);
+  bool a=true;
+  while(a){
+    esp8266Module.write("AT\r\n");
+    delay(250);
+    if(esp8266Module.find("OK")){
+      Serial.println("Got the OK reply");
+      a=false;
+    }else Serial.println("ESP Not connected");
+    delay(1000);
+  }
+  bool b=true;
   lcd.begin(16, 2);
 }
 void loop(){
   dht.read(A0);
-  updateData(dht.readTemperature(),dht.readHumidity(),analogRead(A1),analogRead(A2),analogRead(A3));
-  updateLcd(dht.readTemperature(),dht.readHumidity(),analogRead(A1),analogRead(A2),analogRead(A3));
+  updateData(dht.readTemperature(),dht.readHumidity(),analogRead(A1),analogRead(A2),analogRead(A3),bmp.readPressure());
+  updateLcd(dht.readTemperature(),dht.readHumidity(),analogRead(A1),bmp.readPressure());
   Serial.print(dht.readTemperature());
   Serial.print(" | ");
   Serial.print(dht.readHumidity());
@@ -50,31 +64,33 @@ void loop(){
   Serial.print(" | ");
   Serial.print(analogRead(A2));
   Serial.print(" | ");
-  Serial.println(analogRead(A3));
+  Serial.print(analogRead(A3));
+  Serial.print(" | ");
+  Serial.println(bmp.readPressure());
   if (esp8266Module.available()) {
     Serial.write(esp8266Module.read());
   }
   for(int i=0;i<10;i++)
   { 
-    updateLcd(dht.readTemperature(),dht.readHumidity(),analogRead(A1),analogRead(A2),analogRead(A3));
+    updateLcd(dht.readTemperature(),dht.readHumidity(),analogRead(A1),bmp.readPressure());
     delay(1000);
   }
 }
-void updateLcd(int a1,int a2,int a3,int a4,int a5){
+void updateLcd(int a1,int a2,int a3,int a4){
   lcd.setCursor(0,0);
   lcd.print(a1);
-  lcd.print("C   ");
+  lcd.print(" C   ");
   lcd.print(a2);
-  lcd.print("%  ");
-  lcd.print(a5);
+  lcd.print(" %   ");
   lcd.setCursor(0,1);
   lcd.print("SM:");
   lcd.print(a3);
-  lcd.print("  L:");
+  lcd.print("  ");
   lcd.print(a4);
+  lcd.print("Pa");
 }
 
-void updateData(int v1,int v2,int v3,int v4,int v5)
+void updateData(int v1,int v2,int v3,int v4,int v5,int v6)
 {  
   String cmd = "AT+CIPSTART=\"TCP\",\"";
   cmd += IP;
@@ -84,14 +100,19 @@ void updateData(int v1,int v2,int v3,int v4,int v5)
   if(esp8266Module.find("Error")){
     Serial.println("Error");
   }
-  cmd = GET + "&field1=" + v1 + "&field2=" + v2 + "&field3=" + v3 + "&field4=" + v4 + "&field5=" + v5 + "\r\n";
+  Serial.println(v6);
+  cmd = GET + "&field1=" + v1 + "&field2=" + v2 + "&field3=" + v3 + "&field4=" + v4 + "&field5=" + v5 + "&field6=" + v6 + "\r\n";
   esp8266Module.print("AT+CIPSEND=");
   esp8266Module.println(cmd.length());
-  delay(250);
+  Serial.println(cmd.length());
+  Serial.println(cmd);
+  delay(500);
   if(esp8266Module.find("OK")){
     delay(1000);
+    Serial.println("Sending");
     esp8266Module.println(cmd);
     Serial.println("Data sent");
+    esp8266Module.println("AT+CIPCLOSE");
   }else{
     esp8266Module.println("AT+CIPCLOSE");
     Serial.println("Connection closed");
