@@ -1,4 +1,4 @@
-                          ////////
+                         ////////
 //  Weather station using Arduino( LCD display and update data to ThinkSpeak )
                           ////////
 #include <Wire.h>
@@ -76,21 +76,22 @@ void loop(){
     delay(1000);
   }
 }
-void updateLcd(int a1,int a2,int a3,int a4){
+void updateLcd(int a1,int a2,int a3,long int a4){
   lcd.setCursor(0,0);
+  lcd.print("  ");
   lcd.print(a1);
-  lcd.print(" C   ");
+  lcd.print(" C    ");
   lcd.print(a2);
   lcd.print(" %   ");
   lcd.setCursor(0,1);
   lcd.print("SM:");
   lcd.print(a3);
-  lcd.print("  ");
+  lcd.print(" ");
   lcd.print(a4);
   lcd.print("Pa");
 }
 
-void updateData(int v1,int v2,int v3,int v4,int v5,int v6)
+void updateData(int v1,int v2,int v3,int v4,int v5,long int v6)
 {  
   String cmd = "AT+CIPSTART=\"TCP\",\"";
   cmd += IP;
@@ -100,9 +101,8 @@ void updateData(int v1,int v2,int v3,int v4,int v5,int v6)
   if(esp8266Module.find("Error")){
     Serial.println("Error");
   }
-  Serial.println(v6);
   cmd = GET + "&field1=" + v1 + "&field2=" + v2 + "&field3=" + v3 + "&field4=" + v4 + "&field5=" + v5 + "&field6=" + v6 + "\r\n";
-  esp8266Module.print("AT+CIPSEND=");
+  esp8266Module.write("AT+CIPSEND=");
   esp8266Module.println(cmd.length());
   Serial.println(cmd.length());
   Serial.println(cmd);
